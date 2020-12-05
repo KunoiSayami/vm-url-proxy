@@ -23,7 +23,16 @@ use std::net::TcpStream;
 use webbrowser;
 
 fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    let mut config = configparser::ini::Ini::new();
+    config.load("config.ini").unwrap();
+
+    let bind_address = config.get("server", "addr")
+        .unwrap_or(String::from("0.0.0.0"));
+
+    let bind_port = config.getint("server", "port")
+        .unwrap_or(Some(7878)).unwrap_or(7878);
+
+    let listener = TcpListener::bind(format!("{}:{}", bind_address, bind_port)).unwrap();
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
