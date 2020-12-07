@@ -19,16 +19,14 @@
  */
 use std::collections::HashMap;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
-    println!("{:?}", args);
     if args.len() < 2 {
         return Ok(())
     }
     let mut config = configparser::ini::Ini::new();
 
-    let mut exec_config = std::env::current_exe().unwrap();
+    let mut exec_config = std::env::current_exe()?;
     exec_config.pop();
     exec_config.push("config.ini");
 
@@ -44,11 +42,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let body = args.get(1).unwrap().clone();
     println!("{}", body);
     //sleep(Duration::from_secs(10));
-    let client = reqwest::Client::new();
+    let client = reqwest::blocking::Client::new();
     let res = client.post(format!("http://{}:{}/", server_address, server_port).as_str())
-        .body(body)
-        .send()
-        .await?;
+        .body(base64::encode(body))
+        .send()?;
     println!("{:#?}", res);
     Ok(())
 }

@@ -50,9 +50,9 @@ fn handle_connection(mut stream: TcpStream) {
 
 
     let tmp = body.trim_matches(char::from(0)).split("\r\n\r\n");
-    let website_address = tmp.last().unwrap();
+    let website_address = String::from_utf8(base64::decode(tmp.last().unwrap()).unwrap()).unwrap();
 
-    match webbrowser::open(website_address) {
+    match webbrowser::open(website_address.as_str()) {
         Ok(_) => println!("Opened {}", website_address),
         Err(e) => eprintln!("Got error {:?}", e)
     }
