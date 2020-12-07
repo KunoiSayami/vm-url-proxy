@@ -21,10 +21,11 @@ use std::io::prelude::*;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use webbrowser;
+use std::collections::HashMap;
 
 fn main() {
     let mut config = configparser::ini::Ini::new();
-    config.load("config.ini").unwrap();
+    config.load("config.ini").unwrap_or(HashMap::new());
 
     let bind_address = config.get("server", "addr")
         .unwrap_or(String::from("0.0.0.0"));
