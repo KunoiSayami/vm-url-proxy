@@ -1,5 +1,5 @@
 /*
- ** Copyright (C) 2020 KunoiSayami
+ ** Copyright (C) 2020-2023 KunoiSayami
  **
  ** This file is part of vm-url-proxy and is released under
  ** the AGPL v3 License: https://www.gnu.org/licenses/agpl-3.0.txt
@@ -18,6 +18,7 @@
  ** along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 use std::collections::HashMap;
+use base64::Engine;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
@@ -44,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //sleep(Duration::from_secs(10));
     let client = reqwest::blocking::Client::new();
     let res = client.post(format!("http://{}:{}/", server_address, server_port).as_str())
-        .body(base64::encode(body))
+        .body(base64::engine::general_purpose::STANDARD.encode(body))
         .send()?;
     println!("{:#?}", res);
     Ok(())

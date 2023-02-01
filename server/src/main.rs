@@ -1,5 +1,5 @@
 /*
- ** Copyright (C) 2020 KunoiSayami
+ ** Copyright (C) 2020-2023 KunoiSayami
  **
  ** This file is part of vm-url-proxy and is released under
  ** the AGPL v3 License: https://www.gnu.org/licenses/agpl-3.0.txt
@@ -22,6 +22,7 @@ use std::net::TcpListener;
 use std::net::TcpStream;
 use webbrowser;
 use std::collections::HashMap;
+use base64::Engine;
 
 fn main() {
     let mut config = configparser::ini::Ini::new();
@@ -50,7 +51,7 @@ fn handle_connection(mut stream: TcpStream) {
 
 
     let tmp = body.trim_matches(char::from(0)).split("\r\n\r\n");
-    let website_address = String::from_utf8(base64::decode(tmp.last().unwrap()).unwrap()).unwrap();
+    let website_address = String::from_utf8(base64::engine::general_purpose::STANDARD.decode(tmp.last().unwrap()).unwrap()).unwrap();
 
     match webbrowser::open(website_address.as_str()) {
         Ok(_) => println!("Opened {}", website_address),
