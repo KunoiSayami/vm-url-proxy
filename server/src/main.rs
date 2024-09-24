@@ -17,22 +17,25 @@
  ** You should have received a copy of the GNU Affero General Public License
  ** along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+use base64::Engine;
+use std::collections::HashMap;
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use webbrowser;
-use std::collections::HashMap;
-use base64::Engine;
 
 fn main() {
     let mut config = configparser::ini::Ini::new();
     config.load("config.ini").unwrap_or(HashMap::new());
 
-    let bind_address = config.get("server", "addr")
+    let bind_address = config
+        .get("server", "addr")
         .unwrap_or(String::from("0.0.0.0"));
 
-    let bind_port = config.getint("server", "port")
-        .unwrap_or(Some(7878)).unwrap_or(7878);
+    let bind_port = config
+        .getint("server", "port")
+        .unwrap_or(Some(7878))
+        .unwrap_or(7878);
 
     let listener = TcpListener::bind(format!("{}:{}", bind_address, bind_port)).unwrap();
 
@@ -47,20 +50,22 @@ fn handle_connection(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
     stream.read(&mut buffer).unwrap();
 
-    let body= String::from_utf8_lossy(&buffer);
-
+    let body = String::from_utf8_lossy(&buffer);
 
     let tmp = body.trim_matches(char::from(0)).split("\r\n\r\n");
-    let website_address = String::from_utf8(base64::engine::general_purpose::STANDARD.decode(tmp.last().unwrap()).unwrap()).unwrap();
+    let website_address = String::from_utf8(
+        base64::engine::general_purpose::STANDARD
+            .decode(tmp.last().unwrap())
+            .unwrap(),
+    )
+    .unwrap();
 
     match webbrowser::open(website_address.as_str()) {
         Ok(_) => println!("Opened {}", website_address),
-        Err(e) => eprintln!("Got error {:?}", e)
+        Err(e) => eprintln!("Got error {:?}", e),
     }
 
-    let response = format!(
-        "HTTP/1.1 204 No Content\r\nContent-Type: text/html"
-    );
+    let response = format!("HTTP/1.1 204 No Content\r\nContent-Type: text/html");
 
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();

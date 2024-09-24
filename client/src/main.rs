@@ -17,13 +17,13 @@
  ** You should have received a copy of the GNU Affero General Public License
  ** along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-use std::collections::HashMap;
 use base64::Engine;
+use std::collections::HashMap;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
-        return Ok(())
+        return Ok(());
     }
     let mut config = configparser::ini::Ini::new();
 
@@ -31,20 +31,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     exec_config.pop();
     exec_config.push("config.ini");
 
-    config.load(exec_config.to_str().unwrap()).unwrap_or(HashMap::new());
+    config
+        .load(exec_config.to_str().unwrap())
+        .unwrap_or(HashMap::new());
 
-    let server_address = config.get("client", "addr")
+    let server_address = config
+        .get("client", "addr")
         .unwrap_or(String::from("127.0.0.1"));
 
-    let server_port = config.getint("client", "port")
-        .unwrap_or(Some(7878)).unwrap_or(7878);
-
+    let server_port = config
+        .getint("client", "port")
+        .unwrap_or(Some(7878))
+        .unwrap_or(7878);
 
     let body = args.get(1).unwrap().clone();
     println!("{}", body);
     //sleep(Duration::from_secs(10));
     let client = reqwest::blocking::Client::new();
-    let res = client.post(format!("http://{}:{}/", server_address, server_port).as_str())
+    let res = client
+        .post(format!("http://{}:{}/", server_address, server_port).as_str())
         .body(base64::engine::general_purpose::STANDARD.encode(body))
         .send()?;
     println!("{:#?}", res);
