@@ -1,11 +1,18 @@
 [package]
 name = "client"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["KunoiSayami <46131041+KunoiSayami@users.noreply.github.com>"]
 edition = "2018"
 
-
 [dependencies]
-reqwest = { version = "0.11", features = ["json", "blocking"] }
-configparser = "3.0.2"
-base64 = "0.21.0"
+auth = { path = "../auth" }
+base64 = "0.22"
+reqwest = { version = "0.12", default-features = false, features = [
+    "http2",
+    "json",
+    "blocking",
+] }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+toml = "0.8"
+types = { path = "../types" }

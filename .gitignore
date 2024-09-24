@@ -11,4 +11,5 @@ target/
 **/*.rs.bk
 
 .idea/
-config.ini
+config.toml
+.vscode/

@@ -1,5 +1,5 @@
 /*
- ** Copyright (C) 2020-2023 KunoiSayami
+ ** Copyright (C) 2020-2024 KunoiSayami
  **
  ** This file is part of vm-url-proxy and is released under
  ** the AGPL v3 License: https://www.gnu.org/licenses/agpl-3.0.txt
@@ -17,56 +17,86 @@
  ** You should have received a copy of the GNU Affero General Public License
  ** along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
+use axum::extract::ConnectInfo;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::Json;
+use axum::Router;
 use base64::Engine;
-use std::collections::HashMap;
-use std::io::prelude::*;
-use std::net::TcpListener;
-use std::net::TcpStream;
+use serde::Deserialize;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use types::Body;
 use webbrowser;
 
-fn main() {
-    let mut config = configparser::ini::Ini::new();
-    config.load("config.ini").unwrap_or(HashMap::new());
+#[derive(Deserialize)]
+struct Config {
+    bind: String,
+    passkey: String,
+}
 
-    let bind_address = config
-        .get("server", "addr")
-        .unwrap_or(String::from("0.0.0.0"));
+async fn async_main() -> anyhow::Result<()> {
+    let config: Config = toml::from_str(&tokio::fs::read_to_string("config.toml").await?)?;
+    if config.passkey.is_empty() {
+        return Err(anyhow::anyhow!(
+            "Should specify passkey or your computer may under attack"
+        ));
+    }
 
-    let bind_port = config
-        .getint("server", "port")
-        .unwrap_or(Some(7878))
-        .unwrap_or(7878);
+    let route = Router::new()
+        .route("/", axum::routing::post(handle))
+        .with_state(Arc::new(config.passkey));
 
-    let listener = TcpListener::bind(format!("{}:{}", bind_address, bind_port)).unwrap();
+    let listener = tokio::net::TcpListener::bind(&config.bind).await?;
 
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
+    log::info!("Listening {}", config.bind);
 
-        handle_connection(stream);
+    axum::serve(
+        listener,
+        route.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(async {
+        tokio::signal::ctrl_c().await.ok();
+    })
+    .await?;
+    Ok(())
+}
+
+async fn handle(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(passkey): State<Arc<String>>,
+    Json(body): Json<Body>,
+) -> impl IntoResponse {
+    if auth::verify(&passkey, &body.auth(), &body.auth()) {
+        log::warn!("Block unauthorized request from {addr:?}, {}", &body.url());
+        StatusCode::FORBIDDEN
+    } else {
+        if let Ok(Ok(url)) = base64::prelude::BASE64_STANDARD_NO_PAD
+            .decode(body.url())
+            .map(|s| String::from_utf8(s))
+        {
+            if let Err(e) = webbrowser::open(&url) {
+                log::error!("Unable open browser: {e:?}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            } else {
+                log::info!("Opened {url:?}");
+                StatusCode::NO_CONTENT
+            }
+        } else {
+            StatusCode::BAD_REQUEST
+        }
     }
 }
 
-fn handle_connection(mut stream: TcpStream) {
-    let mut buffer = [0; 1024];
-    stream.read(&mut buffer).unwrap();
-
-    let body = String::from_utf8_lossy(&buffer);
-
-    let tmp = body.trim_matches(char::from(0)).split("\r\n\r\n");
-    let website_address = String::from_utf8(
-        base64::engine::general_purpose::STANDARD
-            .decode(tmp.last().unwrap())
-            .unwrap(),
-    )
-    .unwrap();
-
-    match webbrowser::open(website_address.as_str()) {
-        Ok(_) => println!("Opened {}", website_address),
-        Err(e) => eprintln!("Got error {:?}", e),
-    }
-
-    let response = format!("HTTP/1.1 204 No Content\r\nContent-Type: text/html");
-
-    stream.write(response.as_bytes()).unwrap();
-    stream.flush().unwrap();
+fn main() -> anyhow::Result<()> {
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info)
+        .init();
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async_main())
 }
